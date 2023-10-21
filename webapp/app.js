@@ -10,22 +10,19 @@ const { info } = require('console');
 var { connected } = require('process');
 require('dotenv').config();
 
+const port = 3000;
 
 app.set('view engine', 'ejs');
 app.set('views', __dirname+'/views');
-
-const port = 3000;
-
-//impiegato per il corretto utilizzo dei css
 app.use(express.static(__dirname + '/views'));
 
-// Gestione della sessione
+// management of the session
 app.use(expressSession({
   secret: 'RecipeCove',
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 24 * 60 * 60 * 1000, secure: true } // durata di 24 ore + sicurezza
-  // Ha valore cookie di default: { path: '/', httpOnly: true, secure: false, maxAge: null }
+  cookie: { maxAge: 24 * 60 * 60 * 1000, secure: true } // duration of 24 hours + security
+  // default: { path: '/', httpOnly: true, secure: false, maxAge: null }
 }));
 
 app.use(function(req,res,next) {  
@@ -34,7 +31,7 @@ app.use(function(req,res,next) {
 }); 
 
 
-/* ********************************* FINE DIPENDENZE ****************************************** */
+/* ********************************* HTTPS SERVER ****************************************** */
 
 const server = https.createServer({
   key: fs.readFileSync('security/key.pem'),
@@ -63,7 +60,7 @@ app.get('/error', function(req, res){
 /* *********************************** GOOGLE OAUTH ******************************************* */
 
 app.get('/login', function(req, res){
-  if (req.session.utente!=undefined){ //se un utente si è già connesso 
+  if (req.session.utente!=undefined){ //if a user is already connected
     res.redirect('/');
   }
   else{
@@ -101,17 +98,17 @@ app.get('/gtoken', function(req, res){
     }
     else{
       req.session.google_token = info.access_token;
-      console.log("Il token di google è: "+req.session.google_token);
-      res.redirect('/registrazione'); 
+      console.log("google token is: "+req.session.google_token);
+      res.redirect('/register'); 
     }
   });
 
 });
 
-app.get('/registrazione', function(req, res){
+app.get('/register', function(req, res){
 
   if(req.session.google_token==undefined){ 
-    //siamo qui solo se dalla barra si digita /registrazione
+    //we are here only if we type in the search bar /register
     cod_status = 404;
     return res.redirect('/error?cod_status='+cod_status);
   }
@@ -126,7 +123,7 @@ app.get('/registrazione', function(req, res){
     }
     var info = JSON.parse(body);
       /* 
-        QUESTE INFO SONO COSI' FATTE:
+        THESE INFO ARE ORGANIZED IN THE FOLLOWING WAY:
         {
           "id": "xx",
           "name": "xx",
@@ -143,7 +140,7 @@ app.get('/registrazione', function(req, res){
       res.send(info.error);
     }
     else{
-      // Inserire nel database questo account attraverso l'id, controllando che non sia già presente
+      // Insert this account in the database with its id, checking if it's already present
       var id = info.id;
       request({
         url: 'http://admin:admin@couchdb:5984/users/_all_docs',
@@ -157,11 +154,11 @@ app.get('/registrazione', function(req, res){
           } else {
             var data = JSON.parse(body); 
             for(var i=0; i<data.total_rows;i++){
-              // se questo account google è già registrato torno alla home, altrimenti lo inserisco nel db e torno alla home
+              // if this account is already registered go back to the home page, insert it in the database and go back to the home page otherwise
               if(data.rows[i].id === id){  
-                req.session.utente = id; // imposto l'utente di questa sessione in modo da poter accedere al profilo dopo
+                req.session.utente = id; // setting the user of this session
                 connected = true;
-                console.log("Utente "+id+", "+info.name+" già registrato");
+                console.log("User "+id+", "+info.name+" already registered");
                 res.render('index', {connected:connected});
                 return;
               }
@@ -190,7 +187,7 @@ app.get('/registrazione', function(req, res){
               }
               else{
                 console.log("Registrazione di "+id+", "+info.name+" avvenuta");
-                req.session.utente = id; // imposto l'utente di questa sessione in modo da poter accedere al profilo dopo
+                req.session.utente = id; // setting the user of this session
                 connected = true;
                 res.render('index', {connected:connected});
               }
@@ -202,11 +199,10 @@ app.get('/registrazione', function(req, res){
   });
 });
 
-/* ******************************** FINE GOOGLE OAUTH ***************************************** */
 
-/* ************************************** PROFILO ********************************************* */
+/* ************************************** PROFILE ********************************************* */
 
-app.get('/profilo', function(req, res){
+app.get('/profile', function(req, res){
   if (req.session.utente!=undefined){
     request({
       url: 'http://admin:admin@couchdb:5984/users/'+req.session.utente,
@@ -224,8 +220,7 @@ app.get('/profilo', function(req, res){
           res.send(info_p.error);
         }
         var info_utente = info_p;
-        // console.log(info_utente);
-        res.render('profilo', {info_utente:info_utente, connected:connected});
+        res.render('profile', {info_utente:info_utente, connected:connected, google_token:req.session.google_token});
       }
     });
   }
@@ -258,7 +253,7 @@ app.get('/delete_account', function(req, res){
     }, function(error, response, body){
       if (error){
         console.log(error);
-        res.send("ERRORE");
+        res.send("ERROR");
       }else{
         rev = (JSON.parse(body))._rev;
         request({
@@ -270,7 +265,7 @@ app.get('/delete_account', function(req, res){
         }, function(error, response, body){
           if (error){
             console.log(error);
-            res.send("ERRORE");
+            res.send("ERROR");
           }
           else{
             req.session.destroy();
@@ -287,7 +282,7 @@ app.get('/delete_account', function(req, res){
   }
 });
 
-app.post('/eliminaPreferiti', function(req,res){
+app.post('/removeFavorites', function(req,res){
   var id_utente = req.query.id;
   var title = req.query.title;
   var info_utente;
@@ -304,6 +299,7 @@ app.post('/eliminaPreferiti', function(req,res){
     else{
       info_utente = JSON.parse(body);
       for (var h=0; h<info_utente.my_list.length; h++){
+        //scan the favorites list and when you find a recipe with name equal to "title", remove it from the list
         if (info_utente.my_list[h]==title){
           info_utente.my_list.splice(h,1);
         }
@@ -327,7 +323,7 @@ app.post('/eliminaPreferiti', function(req,res){
   });
 });
 
-app.post('/aggiungiPreferiti', function(req, res){
+app.post('/addFavorites', function(req, res){
   var id_utente = req.query.id;
   var title = req.query.title;
   var info_utente;
@@ -362,8 +358,6 @@ app.post('/aggiungiPreferiti', function(req, res){
     }
   });
 });
- 
-/* *********************************** FINE PROFILO ******************************************* */
 
 
 /* ********************************  GOOGLE CALENDAR ***************************************** */
@@ -677,10 +671,102 @@ app.post('/add_event', function(req, res) {
 });
 
 
-/* ******************************** FINE GOOGLE CALENDAR ***************************************** */
+/* *************************************** SPOONACULAR *********************************************** */
+
+app.post('/results_recipe', function(req, res) {
+  var titolo = req.body.search; 
+    
+  var option = {
+    url: 'https://api.spoonacular.com/recipes/complexSearch?apiKey='+process.env.SPOONACULAR_KEY+'&number=20&query='+titolo, 
+  }
+    
+  request.get(option,function(error, response, body){
+    if(error) {
+      console.log(error);
+    } 
+    else {
+      if (response.statusCode == 200) {
+        var info = JSON.parse(body);
+        if (info.results.length>0){
+          res.render("results_recipe", {info:info, connected:connected});   
+        }
+        else{
+          cod_status = response.statusCode;
+          message="The searched recipe does not exist";
+          res.redirect('/error?cod_status='+cod_status+'&message='+message);
+        }
+      }
+      else{
+        cod_status = response.statusCode;
+        res.redirect('/error?cod_status='+cod_status);
+      }
+    }
+  });
+});
 
 
-/* ********************************* DEFINIZIONE DELLA PORTA ****************************************** */
+app.get("/results_title", function(req,res){
+  var recipe_id=req.query.id;
+  var recipe_name;
+  var added_to_favorites=false;
+  var option = {
+    url: 'https://api.spoonacular.com/recipes/'+recipe_id+'/information?apiKey='+process.env.SPOONACULAR_KEY,
+  }
+    
+  request.get(option,function(error, response, body){
+    if(error) {
+      console.log(error);
+    } 
+    else {
+      if (response.statusCode == 200) {
+        var info = JSON.parse(body);
+        var id_utente=req.session.utente;
+        if (info!=undefined){
+          recipe_name=info.title;
+          if (req.session.utente!=undefined){
+            request({
+              url: 'http://admin:admin@couchdb:5984/users/'+id_utente,
+              method: 'GET',
+              headers: {
+                'content-type': 'application/json'
+              },
+            }, function(error, response, body){
+              if (error){
+                console.log(error);
+              }
+              else{
+                info_p = JSON.parse(body);
+                console.log(info_p);
+                for (var h=0; h<info_p.my_list.length; h++){
+                  if (info_p.my_list[h]==recipe_name){
+                    added_to_favorites=true;
+                  }
+                }
+                console.log(added_to_favorites);
+                res.render("results_title", {info:info, info_p:info_p, id_utente: id_utente, google_token: req.session.google_token, connected:connected, added_to_favorites:added_to_favorites}); 
+              }
+            });
+          }
+          else{
+            res.render("results_title", {info:info, id_utente: id_utente, connected:connected, added_to_favorites:added_to_favorites}); 
+          }
+        }
+        else{
+          cod_status = response.statusCode;
+          message="The searched recipe does not exist"
+          res.redirect('/error?cod_status='+cod_status+'&message='+message);
+        }
+      }
+      else{
+        cod_status = response.statusCode;
+        res.redirect('/error?cod_status='+cod_status);
+      }
+    }
+  });
+});
+
+
+/* ********************************* PORT CONFIGURATION ****************************************** */
 
 app.use(function(req, res, next){
   res.status(404).redirect('/error?cod_status='+404);
