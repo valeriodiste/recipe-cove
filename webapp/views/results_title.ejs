@@ -49,18 +49,32 @@
                             <br>
                             <div class="row text-center">
                               <div class="col">
-                                <%if (id_utente!=undefined){%>
-                                    <% if (added_to_favorites==false){ %>
-                                        <button class="heart-button" id="heart-button" onclick='manageDB("<%=id_utente%>", "<%=title%>")'>Add to favorites <i class='fa fa-heart-o'></i></button>
-                                    <%} else{%>
-                                        <button class="heart-button" id="heart-button" onclick='manageDB("<%=id_utente%>", "<%=title%>")'>Remove from favorites <i class='bi bi-trash3'></i></button>
-                                    <%} %>
-                                    <br>
+
+								<%if (id_utente!=undefined){%>
+
+									<% if (added_to_favorites==false){ %>
+
+										<button id="add-to-favorite-button" onclick='manageDB("<%=id_utente%>", "<%=title%>")'>
+											Add to favorites
+										</button>
+
+									<%} else{%>
+
+										<button id="add-to-favorite-button" onclick='manageDB("<%=id_utente%>", "<%=title%>")'>
+											Remove from favorites
+										</button>
+
+									<%} %>
+
+									<br>
+									<br>
+
                                     <%if (info_p.calendar!=""){%>
                                         <a href="https://localhost:3001/add_event?id=<%=id_utente%>&google_token=<%=google_token%>&title=<%=title%>&connected=<%=connected%>"><button class="calendar-button">Add to Calendar <i class="bi bi-calendar-plus"></i></button></a>
                                     <%} else { %>
                                         <button disabled class="calendar-button">Add to Calendar <i class="bi bi-calendar-plus"></i></button>
                                     <% } %>
+
                                 <% } else{%>
                                     <button disabled class="heart-button" id="heart-button-d">Add to favorites <i class='fa fa-heart-o'></i></button>
                                     <br>

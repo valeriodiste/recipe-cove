@@ -73,14 +73,22 @@
                 </div>
                 <div class="col-dx">
                     <br>
-                    <h5>Recipes you like:</h5>
+                    <h5>Your favorite recipes: </h5>
+					<p>Click on a recipe to view more details</p>
+					<p>Remove a recipe from your favorites by clicking on the Remove button</p>
                     <br>
                     <ul style="text-align:left;">
-                    <% for (var i=0; i<info_utente.my_list.length; i++){ %>
+                    <% for (var i=0; i<info_utente.favorites.length; i++){ %>
                         <li>
-                            <%= info_utente.my_list[i]%>
-                            <button class="delete-btn" onclick='javascript:remove("<%=info_utente.id%>","<%=info_utente.my_list[i]%>")'><i class='bi bi-trash3'></i></button>
-                            <br><br>
+							
+							<a href="<%=info_utente.favorites[i].link%>"><%=info_utente.favorites[i].name%></a>
+
+							<button onclick='javascript:remove("<%=info_utente.id%>","<%=info_utente.favorites[i]%>")'>
+								Remove from favorites
+							</button>
+
+							<br>
+							<br>
                         </li> 
                     <%}%>
                     </ul>
