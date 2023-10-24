@@ -72,9 +72,85 @@
             </form>
             <%}%>
 
-                       
-        </div> 
+            <br>
+            <br>
+            <br>
+            <br>
+            <br>
+            <br>
+            <h3>And lastly, allow our Chat-BOT to suggest you some recipes depending on your diet!</h3>
+            <br>
+            <br>            
+        </div>
         
+        <div id="chat-btn" class="btn btn-raised" onclick="javascript:show()">
+            <b><i class="bi bi-chat"></i></b> Chat-Bot
+        </div>
+        <div class="container-chat" id="cont-chat">
+            <div class="chat-box-header">
+                Chat-bot
+                <span class="chat-box-toggle" onclick="javascript:hide()"><i class="bi bi-x-lg"></i></span>
+            </div>
+            <div class="chat-box" id="chat-box">
+                <div id="messages" class="messages"></div>
+            </div>
+            <form id="msgForm" class="msgForm">
+                <input type="text" placeholder="Send a message" class="input" id="inputBox"/>
+                <input type="submit" class="send-btn" value="Send">
+            </form>
+        </div>
+        <script type="text/javascript">
+            var bottone = document.getElementById('chat-btn');
+            var chat = document.getElementById('cont-chat');
+            
+            var websock;
+            function show(){
+                bottone.style.display="none";
+                chat.style.display="flex";
+
+                const ws=new WebSocket('wss://localhost:3000/chat');
+                websock=ws;
+
+                ws.onopen=function(){ }
+
+                ws.onmessage = function(message){
+                    const msgDiv=document.createElement('div');
+                    msgDiv.classList.add('msgCtn1');
+                    msgDiv.innerHTML = message.data;
+                    document.getElementById('messages').appendChild(msgDiv);
+                    messages = document.getElementById('messages'); 
+                    var xH = messages.scrollHeight; 
+                    messages.scrollTo({top:xH, behavior:'smooth'});
+                }
+
+                const form=document.getElementById('msgForm');
+                form.addEventListener('submit',(event) => {
+                    event.preventDefault();
+                    const message=document.getElementById('inputBox').value;
+                    if (message==''){ 
+                        return false; 
+                    }
+                    const msgDiv=document.createElement('div');
+                    msgDiv.classList.add('msgCtn2');
+                    msgDiv.innerHTML = message;
+                    document.getElementById('messages').appendChild(msgDiv);
+                    ws.send(message);
+                    document.getElementById('inputBox').value='';
+                    messages = document.getElementById('messages'); 
+                    var xH = messages.scrollHeight; 
+                    messages.scrollTo({top:xH, behavior:'smooth'});
+                })
+            };
+
+            function hide(){
+                bottone.style.display="block";
+                chat.style.display="none";
+                messages = document.getElementById('messages');
+                messages.innerHTML="";
+                websock.close();
+            }
+            
+        </script>
     </div>
 </body>
 </html>

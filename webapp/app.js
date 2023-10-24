@@ -5,6 +5,7 @@ var bodyParser = require("body-parser");
 var expressSession = require('express-session');
 app.use(bodyParser.urlencoded({ extended: false }));
 var request = require('request');
+const WebSocket = require('ws');
 const https = require('https')
 const { info } = require('console');
 var { connected } = require('process');
@@ -56,6 +57,13 @@ app.get('/error', function (req, res) {
 	stringa = req.query.stringa;
 	res.render('error', { cod_status: cod_status, connected: connected, stringa: stringa });
 });
+
+
+/* ********************************* CHAT-BOT CONFIGURATION ****************************************** */
+
+const wss = new WebSocket.Server({server, path: '/chat'});
+
+
 
 /* *********************************** GOOGLE OAUTH ******************************************* */
 
@@ -361,6 +369,68 @@ app.post('/addFavorites', function (req, res) {
 		}
 	});
 });
+ 
+
+/* ************************************* CHAT BOT ********************************************* */
+
+// MAYBE CHANGE THE CODE SO THAT MORE RESLUTS ARE LOADED AND CHANGE HOW THEY ARE RANDOMLY SELECTED
+
+wss.on('connection', function connection(ws) {
+	ws.on('message', function incoming(data) {
+	  // make the first letter uppercase and the other lowercase
+	  var mes=data.toString();
+	  // mes=mes[0].toUpperCase()+mes.slice(1).toLowerCase();
+	  mes=mes.toLowerCase();
+	  console.log(mes);
+	  
+	  var diet_type;
+	  var suggested;
+  
+	  var diet_list = ['glutenfree','ketogenic','vegetarian','lacto-vegetarian','ovo-vegetarian','vegan','pescetarian','paleo','primal','lowfodmap','whole30'];
+  
+	  // check if the inserted diet is among the ones available for the upcoming searches
+	  var found=false;
+	  for (var i=0; i<diet_list.length; i++){
+		if (mes == diet_list[i]){
+		  found=true;
+		  diet_type=diet_list[i]
+		  break;
+		}
+	  }
+  
+	  // if the inserted diet type is not correct 
+	  if (!found){
+		ws.send('Diet not found, I am sorry :-(. The available diets are: glutenfree, ketogenic, vegetarian, lacto-vegetarian, ovo-vegetarian, vegan, pescetarian, paleo, primal, lowfodmap and whole30.');
+	  }
+	  // if the inserted diet type exists 
+	  else {
+		// search for recipes based on the diet type
+		option = {
+		  url: 'https://api.spoonacular.com/recipes/complexSearch?diet='+diet_type+'&apiKey='+process.env.SPOONACULAR_KEY+'&number=3', 
+		}
+  
+		request.get(option,function(error, response, body){
+		  if(error) {
+			console.log(error);
+		  } else {
+			if (response.statusCode == 200) {
+			  var info = JSON.parse(body);
+			  i = Math.round(Math.random()*2); // random number between 0 and 2 (first 3 recipes)
+			  suggested = info.results[i].title;
+			  // ws.send("I suggest you to check: "+suggested);
+			  ws.send("I suggest you to check: <a href='https://localhost:3000/results_title?id="+info.results[i].id+"' style='text-decoration: none;'>"+suggested+"</a>");
+			}
+			else{
+			  cod_status = response.statusCode;
+			  res.redirect('/error?cod_status='+cod_status);
+			}
+		  }
+		});
+	  }
+	});
+	// Welcome message
+	ws.send('Hello! Insert a diet so I can help you find recipes following that diet...');
+  });
 
 
 /* *************************************** SPOONACULAR *********************************************** */
