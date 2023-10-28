@@ -21,12 +21,14 @@ services:
             - "3000:3000"
         depends_on:
             - couchdb
+            - rabbitmq
         links:
             - couchdb  
         volumes:
             - ./webapp:/webapp/
         networks:
             - app-network
+            - amqp
         restart: on-failure
 
     calendar:
@@ -40,11 +42,26 @@ services:
             - app-network
         restart: on-failure
 
+    nodemailer:
+        build: "./nodemailer"
+        depends_on:
+            - rabbitmq
+        networks:
+            - amqp
+        restart: on-failure
+
+    rabbitmq:
+        build: "./rabbitmq"
+        networks:
+            - amqp
+        restart: on-failure
+
 volumes:
     couchdb-data:
 
 networks:
     app-network:
         driver: bridge
+    amqp:
         
         

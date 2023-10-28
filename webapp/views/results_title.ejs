@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
 <% if (info!=""){ 
-    var title= info.title %>
+    var title= info.title
+	var recipe_id = info.id 
+%>
     <link rel="stylesheet" href="css/style.css" type="text/css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
@@ -15,11 +17,11 @@
 </head>
 <body>
     <div class="my-navbar">
-        <h3>
+        <h3 class="recipe-cove-logo" onclick="location.href='/'">
             Recipe Cove
         </h3>
         <div class="my-navbar-menù">
-            <a href="/">Home</a>
+            <!-- <a href="/">Home</a> -->
             <%if (connected==true){%>
                 <a href="profile">Profile</a>
                 <form action='logout'>
@@ -39,42 +41,28 @@
             <br>
             <h1 class="text-center"><%= info.title%></h1>
             <br>
-            <div class="container">
+            <div class="container ">
                 <div class="row">
                     <div class="col">
                         <div class="container">
-                            <div class="row text-center">
+                            <div class="row text-center rc-image-container">
                               <div class="col"><img src="<%= info.image%>"></div>
                             </div>
                             <br>
                             <div class="row text-center">
                               <div class="col">
-
-								<%if (id_utente!=undefined){%>
-
-									<% if (added_to_favorites==false){ %>
-
-										<button id="add-to-favorite-button" onclick='manageDB("<%=id_utente%>", "<%=title%>")'>
-											Add to favorites
-										</button>
-
-									<%} else{%>
-
-										<button id="add-to-favorite-button" onclick='manageDB("<%=id_utente%>", "<%=title%>")'>
-											Remove from favorites
-										</button>
-
-									<%} %>
-
-									<br>
-									<br>
-
+                                <%if (id_utente!=undefined){%>
+                                    <% if (added_to_favorites==false){ %>
+                                        <button class="heart-button" id="heart-button" onclick='manageDB("<%=id_utente%>", "<%=title%>", "<%=recipe_id%>")'>Add to favorites <i class='fa fa-heart-o'></i></button>
+                                    <%} else{%>
+                                        <button class="heart-button" id="heart-button" onclick='manageDB("<%=id_utente%>", "<%=title%>", "<%=recipe_id%>")'>Remove from favorites <i class='bi bi-trash3'></i></button>
+                                    <%} %>
+                                    <br>
                                     <%if (info_p.calendar!=""){%>
                                         <a href="https://localhost:3001/add_event?id=<%=id_utente%>&google_token=<%=google_token%>&title=<%=title%>&connected=<%=connected%>"><button class="calendar-button">Add to Calendar <i class="bi bi-calendar-plus"></i></button></a>
                                     <%} else { %>
                                         <button disabled class="calendar-button">Add to Calendar <i class="bi bi-calendar-plus"></i></button>
                                     <% } %>
-
                                 <% } else{%>
                                     <button disabled class="heart-button" id="heart-button-d">Add to favorites <i class='fa fa-heart-o'></i></button>
                                     <br>
@@ -86,40 +74,61 @@
                     </div>
 
                     <div class="col text-left">
-                        <table>
-                            <tr>
+                        <table class="recipe-table">
+							<tr>
                                 <td>
-                                    <h4>Health Score: </h4><p><%= info.healthScore%></p>
+									<h4 class="no-margin">Estimated Price</h4>
+                                    <div>$<%= info.pricePerServing%> per serving </div>  
                                 </td>
                             </tr>
                             <tr>
                                 <td>
-                                    <%= info.pricePerServing%> <p>per serving </p>  
+                                    <h4>Health Score</h4>
+									<div class="health-bar" width="100%">
+										<!-- Create a div inside this with a width, in percentage, equal to the health score -->
+										<div class="health-bar-text">
+											<%= info.healthScore%>%
+										</div>
+										<div class="health-bar-fill-container">
+											<div class="health-bar-fill" style="width: <%= info.healthScore%>%"></div>
+										</div>
+									</div>
                                 </td>
                             </tr>
                             <tr>
                                 <td>
-                                    <br>
-                                    <h4>Ingredients: </h4>
-                                    <% if(info.extendedIngredients.length>0){ %>
+									<h4>Ingredients </h4>
+									<div class="ingredients-container">
+										<% if(info.extendedIngredients.length>0){ %>
                                         <% for(var i=0;i < info.extendedIngredients.length; i++) {%>
-                                            <div class="recipe-external-card">
+                                            <div class="ingredient-card-external">
                                                 <a href="https://localhost:3000/results_ingredient?id=<%= info.extendedIngredients[i].id%>" style='text-decoration: none;'>
-                                                    <button class="recipe-internal-card soft-shadow">
-                                                        <img class="immagine" src="https://spoonacular.com/cdn/ingredients_100x100/<%= info.extendedIngredients[i].image%>">
-                                                        <br><br>
-                                                        <%= info.extendedIngredients[i].name%>
+                                                    <button class="ingredient-card-internal">
+														<img class="immagine" src="https://spoonacular.com/cdn/ingredients_100x100/<%= info.extendedIngredients[i].image%>">
+                                                        <div><%= 
+															<!-- Capitalize letters -->
+															info.extendedIngredients[i].name.charAt(0).toUpperCase() +
+															info.extendedIngredients[i].name.slice(1)
+															%></div>
                                                     </button>
                                                 </a>
                                             </div>
-                                        <%}%>
-                                    <%}%>
-                                </td>
+											<%}%>
+										<%}%>
+									</div>
+								</td>
                             </tr>
+							
+						</table>
+						</div>
+					</div>
+					<div class="row">
+						<div class="col text-left">
+						<table class="recipe-table">
                             <tr>
                                 <td>
                                     <br>
-                                    <h4>Recipe Description: </h4>
+                                    <h4 class="no-margin">Recipe Description: </h4>
                                 </td>
                             </tr>
                             <tr>
@@ -154,23 +163,23 @@
         </div>
     </div>
     <script type="text/javascript">
-        function manageDB(id_utente,title){
+        function manageDB(id_utente,title,recipe_id){
             var e= document.getElementById("heart-button");
             if (e.innerHTML=='Add to favorites <i class="fa fa-heart-o"></i>'){
-                addFavorites(id_utente, title);
+                addFavorites(id_utente, title, recipe_id);
             }
             else{
-                removeFavorites(id_utente, title);
+                removeFavorites(id_utente, title, recipe_id);
             }
         };
 
-        function removeFavorites(id_utente, title){
+        function removeFavorites(id_utente, title, recipe_id){
             var xhttp = new XMLHttpRequest();
-            var body={"title": title};
+            var body={"title": title, "recipe_id": recipe_id};
             xhttp.onreadystatechange = function(){
                 if (this.readyState == 4 && this.status == 200){
                     if (this.responseText == "true"){
-                        alert("Recipe removed from favorites!");
+                        // alert("Recipe removed from favorites!");
                         updateButton(); 
                     }else{
                         alert("Unable to remove the recipe");
@@ -179,17 +188,17 @@
                 console.log("Status: "+ this.readyState + " Status: "+ this.status);
                 console.log(this.responseText);
             };
-            xhttp.open("POST", '/removeFavorites?id='+id_utente.toString()+"&title="+ title, true);
+            xhttp.open("POST", '/removeFavorites?id='+id_utente.toString()+"&title="+ title+"&recipe_id="+recipe_id.toString(), true);
             xhttp.send(JSON.stringify(body));
         }
 
-        function addFavorites(id_utente, title){
+        function addFavorites(id_utente, title, recipe_id){
             var xhttp = new XMLHttpRequest();
-            var body={"title": title};
+            var body={"title": title, "recipe_id": recipe_id};
             xhttp.onreadystatechange = function(){
                 if (this.readyState == 4 && this.status == 200){
                     if (this.responseText == "true"){
-                        alert("Recipe added to favorites!");
+                        // alert("Recipe added to favorites!");
                         updateButton(); 
                     }else{
                         alert("Unable to add the recipe to your favorites");
@@ -198,7 +207,7 @@
                 console.log("Status: "+ this.readyState + " Status: "+ this.status);
                 console.log(this.responseText);
             };
-            xhttp.open("POST", '/addFavorites?id='+id_utente.toString()+"&title="+ title, true);
+            xhttp.open("POST", '/addFavorites?id='+id_utente.toString()+"&title="+ title+"&recipe_id="+recipe_id.toString(), true);
             xhttp.send(JSON.stringify(body));
         }
 

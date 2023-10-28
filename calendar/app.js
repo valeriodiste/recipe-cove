@@ -74,7 +74,7 @@ app.get('/add_calendar', function(req, res){
         headers: {
           'Authorization': 'Bearer '+google_token
         },
-        body: '{"summary": "Movie Calendar"}'
+        body: '{"summary": "Recipe Calendar"}'
       };
       request(options, function callback(error, response, body) {
         if (!error && response.statusCode == 200) {

@@ -11,11 +11,11 @@
 </head>
 <body>
     <div class="my-navbar">
-        <h3>
+        <h3 class="recipe-cove-logo" onclick="location.href='/'">
             Recipe Cove
         </h3>
         <div class="my-navbar-menù">
-            <a href="/">Home</a>
+            <!-- <a href="/">Home</a> -->
             <%if (connected==true){%>
                 <a href="profile">Profile</a>
                 <form action='logout'>
@@ -31,56 +31,72 @@
     </div>
 
     <div class="main">
-        <div class="main-box soft-shadow">
-            <br>
-            <h1>Welcome to Recipe Cove, the perfect place to find any kind of recipe. Here you can find any food-ralated information. Enjoy!</h1>
-            <br>
+        <div class="home-page-container main-box soft-shadow">
 
-            <form id='search' class="md" action="https://localhost:3000/results_recipe" method="POST">
-                <div class="container">
-                    <div class="row justify-content-md-center">
-                        <div class="col-md-auto">
-                            <h3>Insert the name of a Recipe</h3>
-                            <div class="col col-lg-15">
-                                <div class="input-group">
-                                    <input type="text" name="search" class="form-control" id="searchTitle validationServer03" placeholder="Search for a recipe..." aria-describedby="validationServer03Feedback" required>
-                                    <div id="validationServer03Feedback" class="invalid-feedback">
-                                        Please provide a valid Recipe
-                                    </div>
-                                    <span class="input-group-btn">
-                                        <button class="btn" style="background-color: rgb(195, 195, 195);" type="submit">
-                                            <i class="bi bi-search" style="size: 10px;"></i>
-                                        </button>
-                                    </span>
-                                </div>
-                            </div>    
-                        </div>
-                    </div>
-                </div>
-            </form>
-            
-            <br>
-            <br>
-            <h3>Login with your Google account to access additional functionalities</h3>
-            <%if (connected==false){%>
-            <form action='login'>
-                <button class="search-button soft-shadow"><img width="25px" heigth="25px" style="margin-bottom: 5px; margin-right: 5px" src="https://static.cdnlogo.com/logos/g/35/google-icon.svg">Login</button>     
-            </form>
-            <%} else{%>
-            <form action='logout'>
-                <button class="search-button soft-shadow"><img width="25px" heigth="25px" style="margin-bottom: 5px; margin-right: 5px" src="https://static.cdnlogo.com/logos/g/35/google-icon.svg">Logout</button>      
-            </form>
-            <%}%>
+			<div class="home-img-container">
+				<img src="images/logo.png" >
+			</div>
 
-            <br>
-            <br>
-            <br>
-            <br>
-            <br>
-            <br>
-            <h3>And lastly, allow our Chat-BOT to suggest you some recipes depending on your diet!</h3>
-            <br>
-            <br>            
+			<div class="home-intro">
+				<div class="home-page-title"><h3>Your place to find the best recipes!</h3></div>
+				<div>
+					<div>Recipe Cove lets you <b>find the best recipes</b> for your needs!</div>
+					<div>You can <b>search for recipes</b> and their details, see <b>single ingredients information</b>, and also add recipes to <b>your personal list</b>!</div>
+					<div>If you <b>login</b> with your Google account, you can also <b>add events to your Google Calendar</b>!</div>
+					<div>Ultimately, you can use our <b>Chat-Bot</b> to ask for recipe suggestions based on a <b>specific diet</b>.</div>
+				</div>
+			</div>
+
+			<div class="home-search-container">
+				<div class="home-page-title"><h3>Search for any of our recipes!</h3></div>
+
+				<form id='search' class="home-search-form" action="https://localhost:3000/results_recipe" method="POST">
+					<div class="home-search-bar-container">
+						<input type="text" name="search" id="searchTitle" class="form-control" placeholder="Search for a recipe..." required>
+						<button type="submit">
+							<i class="bi bi-search" style="size: 10px;"></i>
+						</button>
+					</div>
+				</form>
+			</div>
+
+			<div class="home-google-login-container">
+				<div class="home-google-login">
+					<div class="home-page-title"><h3>Access more features!</h3></div>
+					<%if (connected==false){%>
+						<div class="home-page-text">
+							Login with your Google account!
+						</div>
+					<%} else{%>
+						<div class="home-page-text">
+							<!-- Check if a "user_name" parameter is present -->
+							You are logged in, enjoy!
+						</div>
+					<%}%>
+				</div>
+				<div class="home-google-login">
+					<%if (connected==false){%>
+						<form action='login'>
+							<button class="search-button soft-shadow"><img width="25px" heigth="25px" style="margin-bottom: 5px; margin-right: 5px" src="https://static.cdnlogo.com/logos/g/35/google-icon.svg">Login</button>     
+						</form>
+					<%} else{%>
+						<form action='logout'>
+							<button class="search-button soft-shadow"><img width="25px" heigth="25px" style="margin-bottom: 5px; margin-right: 5px" src="https://static.cdnlogo.com/logos/g/35/google-icon.svg">Logout</button>      
+						</form>
+					<%}%>
+				</div>
+			</div>
+
+			<div class="home-chat-bot-info">
+				<div class="home-page-text">
+					<div><h3>Try our Chat-Bot!</h3></div>
+					<div>You can use our Chat-Bot to ask for recipe suggestions based on a specific diet!</div>
+					<div>Try it out by clicking on the "Chat-Bot" button on the bottom right of this page.</div>
+				</div>
+				<div>
+					<img src="images/chatbot_screenshot.png">
+				</div>
+			</div>
         </div>
         
         <div id="chat-btn" class="btn btn-raised" onclick="javascript:show()">

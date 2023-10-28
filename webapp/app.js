@@ -6,6 +6,7 @@ var expressSession = require('express-session');
 app.use(bodyParser.urlencoded({ extended: false }));
 var request = require('request');
 const WebSocket = require('ws');
+const amqplib = require('amqplib/callback_api');
 const https = require('https')
 const { info } = require('console');
 var { connected } = require('process');
@@ -61,7 +62,7 @@ app.get('/error', function (req, res) {
 
 /* ********************************* CHAT-BOT CONFIGURATION ****************************************** */
 
-const wss = new WebSocket.Server({server, path: '/chat'});
+const wss = new WebSocket.Server({ server, path: '/chat' });
 
 
 
@@ -72,7 +73,7 @@ app.get('/login', function (req, res) {
 		res.redirect('/');
 	}
 	else {
-		res.redirect("https://accounts.google.com/o/oauth2/v2/auth?scope=https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/calendar&response_type=code&include_granted_scopes=true&state=state_parameter_passthrough_value&redirect_uri=https://localhost:3000/googlecallback&client_id=" + process.env.G_CLIENT_ID);
+		res.redirect("https://accounts.google.com/o/oauth2/v2/auth?scope=https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/calendar&response_type=code&include_granted_scopes=true&state=state_parameter_passthrough_value&redirect_uri=https://localhost:3000/googlecallback&client_id=" + process.env.G_CLIENT_ID);
 	}
 });
 
@@ -107,6 +108,10 @@ app.get('/gtoken', function (req, res) {
 		else {
 			req.session.google_token = info.access_token;
 			console.log("google token is: " + req.session.google_token);
+			console.log("info is (1):")
+			console.log(info);
+			console.log("req.session: ")
+			console.log(req.session);
 			res.redirect('/register');
 		}
 	});
@@ -123,13 +128,18 @@ app.get('/register', function (req, res) {
 
 	var google_token = req.session.google_token;
 	var url = 'https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=' + google_token;
-	var headers = { 'Authorization': 'Bearer ' + google_token };
+	// var headers = { 'Authorization': 'Bearer ' + google_token };
 
-	request.get({ headers: headers, url: url }, function (error, response, body) {
+	// request.get({ headers: headers, url: url }, function (error, response, body) {
+	request.get({ url: url }, function (error, response, body) {
 		if (error) {
 			console.log(error);
 		}
 		var info = JSON.parse(body);
+
+		console.log("info is (2): ")
+		console.log(info);
+
 		/* 
 		  THESE INFO ARE ORGANIZED IN THE FOLLOWING WAY:
 		  {
@@ -171,6 +181,11 @@ app.get('/register', function (req, res) {
 							return;
 						}
 					}
+
+					let user_email = info.email;
+
+					let username = info.name;
+
 					var body1 = {
 						"id": info.id,
 						"name": info.name,
@@ -179,7 +194,7 @@ app.get('/register', function (req, res) {
 						"picture": info.picture,
 						"gender": info.gender,
 						"locale": info.locale,
-						"favorites": [],
+						"my_list": [],
 						"calendar": ""
 					}
 					request({
@@ -197,7 +212,68 @@ app.get('/register', function (req, res) {
 							console.log("Registrazione di " + id + ", " + info.name + " avvenuta");
 							req.session.utente = id; // setting the user of this session
 							connected = true;
+
+							// RABBITMQ + AMQP
+
+							console.log("Should be sending email to " + username + " at " + user_email);
+
+							// connect to RabbitMQ server
+							amqplib.connect('amqp://guest:guest@rabbitmq', (err, connection) => {
+
+								if (err) {
+									console.error(err.stack);
+								}
+
+								// create channel to send message
+								connection.createChannel((err, channel) => {
+
+									if (err) {
+										console.error(err.stack);
+									}
+
+									var queue = 'registration_email_queue';
+
+									// create queue
+									channel.assertQueue(queue, {
+										durable: true
+									}, err => {
+										if (err) {
+											console.error(err.stack);
+										}
+
+										// send message to be enqueued in the specified queue
+										function sender(content) {
+											let sent = channel.sendToQueue(queue, Buffer.from(JSON.stringify(content)), {
+												persistent: true,
+												contentType: 'application/json'
+											});
+										};
+
+										let sent = 0;
+										let toSend = 1;
+										// function to send messages to queue (in this case only one message, the registration email)
+										function sendNext() {
+											if (sent >= toSend) {
+												console.log('[RabbitMQ] All messages sent!');
+												// Close connection when all messages have been sent
+												return channel.close(() => connection.close());
+											}
+											sent++;
+											console.log('[RabbitMQ] Sending message #' + sent + ' to queue "' + queue + '"');
+											// send message to queue with email and username of the user who just registered (to which we want to send an email)
+											sender({ email: user_email, username: username });
+											// Close connection (one message sent, i.e. all messages sent in this case)
+											return channel.close(() => connection.close());
+										};
+										sendNext();
+									});
+								});
+							});
+
+							// END OF RABBITMQ + AMQP 
+
 							res.render('index', { connected: connected });
+
 						}
 					});
 				}
@@ -293,6 +369,7 @@ app.get('/delete_account', function (req, res) {
 app.post('/removeFavorites', function (req, res) {
 	var id_utente = req.query.id;
 	var title = req.query.title;
+	var recipe_id = req.query.recipe_id;
 	var info_utente;
 	request({
 		url: 'http://admin:admin@couchdb:5984/users/' + id_utente.toString(),
@@ -305,11 +382,19 @@ app.post('/removeFavorites', function (req, res) {
 			console.log(error);
 		}
 		else {
+			let separator = "#|§|@|§|#";
+			let my_list_item = title + separator + recipe_id;
 			info_utente = JSON.parse(body);
-			for (var h = 0; h < info_utente.favorites.length; h++) {
+			for (var h = 0; h < info_utente.my_list.length; h++) {
 				//scan the favorites list and when you find a recipe with name equal to "title", remove it from the list
-				if (info_utente.favorites[h].name == title) {
-					info_utente.favorites.splice(h, 1);
+				if (recipe_id != -1 && recipe_id != "-1") {
+					if (info_utente.my_list[h] == my_list_item) {
+						info_utente.my_list.splice(h, 1);
+					}
+				} else {
+					if (info_utente.my_list[h] == title) {
+						info_utente.my_list.splice(h, 1);
+					}
 				}
 			}
 			request({
@@ -334,6 +419,7 @@ app.post('/removeFavorites', function (req, res) {
 app.post('/addFavorites', function (req, res) {
 	var id_utente = req.query.id;
 	var title = req.query.title;
+	var recipe_id = req.query.recipe_id;
 	var info_utente;
 	request({
 		url: 'http://admin:admin@couchdb:5984/users/' + id_utente.toString(),
@@ -346,11 +432,10 @@ app.post('/addFavorites', function (req, res) {
 			console.log(error);
 		}
 		else {
+			let separator = "#|§|@|§|#";
+			let my_list_item = title + separator + recipe_id;
 			info_utente = JSON.parse(body);
-			info_utente.favorites.push({
-				"name": title,
-				"link": "https://localhost:3000/results_title?id=" + title
-			});
+			info_utente.my_list.push(my_list_item);
 			request({
 				url: 'http://admin:admin@couchdb:5984/users/' + id_utente,
 				method: 'PUT',
@@ -369,68 +454,133 @@ app.post('/addFavorites', function (req, res) {
 		}
 	});
 });
- 
+
 
 /* ************************************* CHAT BOT ********************************************* */
 
-// MAYBE CHANGE THE CODE SO THAT MORE RESLUTS ARE LOADED AND CHANGE HOW THEY ARE RANDOMLY SELECTED
-
 wss.on('connection', function connection(ws) {
 	ws.on('message', function incoming(data) {
-	  // make the first letter uppercase and the other lowercase
-	  var mes=data.toString();
-	  // mes=mes[0].toUpperCase()+mes.slice(1).toLowerCase();
-	  mes=mes.toLowerCase();
-	  console.log(mes);
-	  
-	  var diet_type;
-	  var suggested;
-  
-	  var diet_list = ['glutenfree','ketogenic','vegetarian','lacto-vegetarian','ovo-vegetarian','vegan','pescetarian','paleo','primal','lowfodmap','whole30'];
-  
-	  // check if the inserted diet is among the ones available for the upcoming searches
-	  var found=false;
-	  for (var i=0; i<diet_list.length; i++){
-		if (mes == diet_list[i]){
-		  found=true;
-		  diet_type=diet_list[i]
-		  break;
-		}
-	  }
-  
-	  // if the inserted diet type is not correct 
-	  if (!found){
-		ws.send('Diet not found, I am sorry :-(. The available diets are: glutenfree, ketogenic, vegetarian, lacto-vegetarian, ovo-vegetarian, vegan, pescetarian, paleo, primal, lowfodmap and whole30.');
-	  }
-	  // if the inserted diet type exists 
-	  else {
-		// search for recipes based on the diet type
-		option = {
-		  url: 'https://api.spoonacular.com/recipes/complexSearch?diet='+diet_type+'&apiKey='+process.env.SPOONACULAR_KEY+'&number=3', 
-		}
-  
-		request.get(option,function(error, response, body){
-		  if(error) {
-			console.log(error);
-		  } else {
-			if (response.statusCode == 200) {
-			  var info = JSON.parse(body);
-			  i = Math.round(Math.random()*2); // random number between 0 and 2 (first 3 recipes)
-			  suggested = info.results[i].title;
-			  // ws.send("I suggest you to check: "+suggested);
-			  ws.send("I suggest you to check: <a href='https://localhost:3000/results_title?id="+info.results[i].id+"' style='text-decoration: none;'>"+suggested+"</a>");
+		// make the first letter uppercase and the other lowercase
+		var mes = data.toString();
+		// mes=mes[0].toUpperCase()+mes.slice(1).toLowerCase();
+		mes = mes.toLowerCase();
+
+		console.log(mes);
+
+		var diet_type;
+		var suggested;
+
+		var diet_list = ['glutenfree', 'ketogenic', 'vegetarian', 'lacto-vegetarian', 'ovo-vegetarian', 'vegan', 'pescetarian', 'paleo', 'primal', 'lowfodmap', 'whole30'];
+
+		var diet_list_mappings = {
+
+			"gluten free": "glutenfree",
+			"gluten-free": "glutenfree",
+			"gluten": "glutenfree",
+			"glutenfree": "glutenfree",
+
+			"ketogenic": "ketogenic",
+			"keto": "ketogenic",
+			"ketogenico": "ketogenic",
+			"cheto": "ketogenic",
+
+			"vegetarian": "vegetarian",
+
+			"lacto-vegetarian": "lacto-vegetarian",
+			"lacto vegetarian": "lacto-vegetarian",
+			"lacto": "lacto-vegetarian",
+			"lactose": "lacto-vegetarian",
+
+			"ovo-vegetarian": "ovo-vegetarian",
+			"ovo vegetarian": "ovo-vegetarian",
+			"ovo": "ovo-vegetarian",
+			"eggs": "ovo-vegetarian",
+
+			"vegan": "vegan",
+
+			"pescetarian": "pescetarian",
+			"pescatarian": "pescetarian",
+			"fish": "pescetarian",
+
+			"paleo": "paleo",
+
+			"primal": "primal",
+
+			"lowfodmap": "lowfodmap",
+			"low fodmap": "lowfodmap",
+			"fodmap": "lowfodmap",
+
+			"whole30": "whole30",
+			"whole 30": "whole30",
+			"whole": "whole30",
+			"whole-thirty": "whole30",
+			"whole thirty": "whole30",
+			"whole-30": "whole30"
+
+		};
+
+		// check if the inserted diet is among the ones available for the upcoming searches
+		var found = false;
+		for (var i = 0; i < diet_list.length; i++) {
+			if (mes.toLowerCase().includes(diet_list[i].toLowerCase())) {
+				// Check if the message includes any words exactly equal to the diet type
+				found = true;
+				diet_type = diet_list[i];
+				break;
+			} else {
+				// Check if the message includes any key of the diet_list_mappings object that is mapped to the diet type
+				for (var key in diet_list_mappings) {
+					if (mes.toLowerCase().includes(key)) {
+						if (diet_list_mappings[key] == diet_list[i]) {
+							found = true;
+							diet_type = diet_list[i];
+							break;
+						}
+					}
+				}
+				if (found) break;
 			}
-			else{
-			  cod_status = response.statusCode;
-			  res.redirect('/error?cod_status='+cod_status);
+		}
+
+		if (!found) {
+			// if the inserted diet type is not correct 
+			// let message = "Diet not found, I am sorry :-(. The available diets are: glutenfree, ketogenic, vegetarian, lacto-vegetarian, ovo-vegetarian, vegan, pescetarian, paleo, primal, lowfodmap and whole30.";
+			let message = "Sorry, I can't help you with that...<br>You can try asking me for a specific diet, like " + diet_list.slice(0, -1).join(", ") + " or " + diet_list.slice(-1) + ".";
+			ws.send(message);
+		} else {
+			// if the inserted diet type exists 
+			// search for recipes based on the diet type
+			option = {
+				url: 'https://api.spoonacular.com/recipes/complexSearch?diet=' + diet_type + '&apiKey=' + process.env.SPOONACULAR_KEY + '&number=3',
 			}
-		  }
-		});
-	  }
+
+			request.get(option, function (error, response, body) {
+				if (error) {
+					console.log(error);
+				} else {
+					if (response.statusCode == 200) {
+						var info = JSON.parse(body);
+						i = Math.round(Math.random() * 2); // random number between 0 and 2 (first 3 recipes)
+						suggested = info.results[i].title;
+						// ws.send("I suggest you to check: "+suggested);
+						// let message = "I suggest you to check: <a href='https://localhost:3000/results_title?id=" + info.results[i].id + "' style='text-decoration: none;'>" + suggested + "</a>";
+						let message = "For a <b>" + diet_type[0].toUpperCase() + diet_type.slice(1) + "</b> diet, I suggest you to check <a href='https://localhost:3000/results_title?id=" + info.results[i].id + "' style='text-decoration: none;'>" + suggested + "</a>.<br><br>Feel free to ask me for anything else!";
+
+						ws.send(message);
+					}
+					else {
+						cod_status = response.statusCode;
+						res.redirect('/error?cod_status=' + cod_status);
+					}
+				}
+			});
+		}
 	});
 	// Welcome message
-	ws.send('Hello! Insert a diet so I can help you find recipes following that diet...');
-  });
+	// let welcome_message = "Hello! Insert a diet so I can help you find recipes following that diet...";
+	let welcome_message = "Hello!<br>I am RecipeCove's chatbot, I can help you find recipes based on a specific diet.<br>Feel free to ask for anything!";
+	ws.send(welcome_message);
+});
 
 
 /* *************************************** SPOONACULAR *********************************************** */
@@ -450,11 +600,11 @@ app.post('/results_recipe', function (req, res) {
 			if (response.statusCode == 200) {
 				var info = JSON.parse(body);
 				if (info.results.length > 0) {
-					res.render("results_recipe", { info: info, connected: connected });
+					res.render("results_recipe", { info: info, connected: connected, search: titolo });
 				}
 				else {
 					cod_status = response.statusCode;
-					message = "The searched recipe does not exist";
+					message = "The recipe you searched for does not exist...";
 					res.redirect('/error?cod_status=' + cod_status + '&message=' + message);
 				}
 			}
@@ -499,9 +649,14 @@ app.get("/results_title", function (req, res) {
 							else {
 								info_p = JSON.parse(body);
 								console.log(info_p);
-								for (var h = 0; h < info_p.favorites.length; h++) {
-									if (info_p.favorites[h] == recipe_name) {
+								let separator = "#|§|@|§|#";
+								for (var h = 0; h < info_p.my_list.length; h++) {
+									if (info_p.my_list[h] == recipe_name) {
 										added_to_favorites = true;
+									} else if (info_p.my_list[h].includes(separator)) {
+										if (info_p.my_list[h].split(separator)[1] == recipe_id) {
+											added_to_favorites = true;
+										}
 									}
 								}
 								console.log(added_to_favorites);

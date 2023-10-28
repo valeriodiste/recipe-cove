@@ -15,11 +15,11 @@
 </head>
 <body>
     <div class="my-navbar">
-        <h3>
+        <h3 class="recipe-cove-logo" onclick="location.href='/'">
             Recipe Cove
         </h3>
         <div class="my-navbar-menù">
-            <a href="/">Home</a>
+            <!-- <a href="/">Home</a> -->
             <%if (connected==true){%>
                 <a href="profile">Profile</a>
                 <form action='logout'>
@@ -37,50 +37,61 @@
     <div class="main">
         <div class="main-box-details soft-shadow">
             <br>
-            <h1 class="text-center"><%= info.name%></h1>
+            <h1 class="text-center"><%= info.name.charAt(0).toUpperCase() + info.name.slice(1) %></h1>
             <br>
             <div class="container">
                 <div class="row">
                     <div class="col">
                         <div class="container">
                             <div class="row text-center">
-                              <div class="col"><img src="https://spoonacular.com/cdn/ingredients_500x500/<%= info.image%>"></div>
+                              <div class="col rc-image-container"><img src="https://spoonacular.com/cdn/ingredients_500x500/<%= info.image%>"></div>
                             </div>
                             <br>
                         </div>
                     </div>
 
                     <div class="col text-left">
-                        <table>
-                            <tr>
-                                <td>
-                                    <h4>Estimated Cost: </h4><p><%= info.estimatedCost.value%></p>
+                        <table class="recipe-table" width="100%">
+                            <tr width="100%">
+                                <td colspan="3">
+                                    <h4 class="no-margin">Estimated Cost </h4>
+									<div><%= info.estimatedCost.value%> <%= info.estimatedCost.unit%></div>
                                 </td>
                             </tr>
                             <% if(info.nutrition.caloricBreakdown!="") {%>
-                            <tr>
-                                <td>
-                                    <b><%= info.nutrition.caloricBreakdown.percentProtein%> </b><p>protein</p>
+							<tr width="100%">
+								<td colspan="3">
+									<h4>Caloric Breakdown </h4>
+								</td>
+							</tr>
+                            <tr width="100%">
+                                <td width="33%">
+									<div>Protein</b></div>
+                                    <div><b><%= info.nutrition.caloricBreakdown.percentProtein%> </b></div>
                                 </td>
-                                <td>
-                                    <b><%= info.nutrition.caloricBreakdown.percentFat%> </b><p>fat</p>
+                                <td width="33%">
+									<div>Fat</b></div>
+                                    <div><b><%= info.nutrition.caloricBreakdown.percentFat%> </b></div>
                                 </td>
-                                <td>
-                                    <b><%= info.nutrition.caloricBreakdown.percentCarbs%> </b><p>carbs</p>
+                                <td width="33%">
+									<div>Carbs</b></div>
+                                    <div><b><%= info.nutrition.caloricBreakdown.percentCarbs%> </b></div>
                                 </td>
                             </tr>  
                             <%}%>
 
                             <tr>
-                                <td>
-                                    <h4>Nutritional Values: </h4>
-                                    <% if(info.nutrition.nutrients.length>0) {%>
-                                        <% for(var i=0;i < info.nutrition.nutrients.length; i++) {%>
-                                            <b><%= info.nutrition.nutrients[i].name%></b>: <%= info.nutrition.nutrients[i].amount%> <%= info.nutrition.nutrients[i].unit%>
-                                        <%}%>
-                                    <% } else{%>
-                                        <p>Nutritional values not available...</p>
-                                    <%}%>
+                                <td colspan="3">
+                                    <h4>Nutritional Values </h4>
+									<div class="ingredients-container">
+										<% if(info.nutrition.nutrients.length>0) {%>
+											<% for(var i=0;i < info.nutrition.nutrients.length; i++) {%>
+												<div class="nutritional-value"><b><%= info.nutrition.nutrients[i].name%></b>: <%= info.nutrition.nutrients[i].amount%> <%= info.nutrition.nutrients[i].unit%></div>
+											<%}%>
+										<% } else{%>
+											<p>Nutritional values not available...</p>
+										<%}%>
+									</div>
                                 </td>
                             </tr>
                         </table>
